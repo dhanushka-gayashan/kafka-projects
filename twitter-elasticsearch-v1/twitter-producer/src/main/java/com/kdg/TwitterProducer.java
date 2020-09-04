@@ -65,7 +65,7 @@ public class TwitterProducer {
             }
 
             if (msg != null) {
-                kafkaProducer.send(new ProducerRecord<String, String>(kafkaTopic, null, msg), (recordMetadata, e) -> {
+                kafkaProducer.send(new ProducerRecord<>(kafkaTopic, null, msg), (recordMetadata, e) -> {
                     if (e != null) {
                         logger.error("Something bad happened...", e);
                     }
@@ -127,6 +127,6 @@ public class TwitterProducer {
         properties.setProperty(ProducerConfig.BATCH_SIZE_CONFIG, Integer.toString(32*1024)); // 32 KB batch size
 
         // Create and Return Producer
-        return new KafkaProducer<String, String>(properties);
+        return new KafkaProducer<>(properties);
     }
 }
