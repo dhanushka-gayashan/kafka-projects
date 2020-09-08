@@ -9,11 +9,10 @@ import java.util.Properties;
 
 public class KafkaTwitterConsumer {
 
-    public KafkaConsumer<String, String> createConsumer() {
+    public KafkaConsumer<String, String> createConsumer(String topic) {
 
         String bootstrapServers = "127.0.0.1:9092";
         String groupId = "twitter-kafka-elasticsearch";
-        String topic = "twitter_tweets";
 
         // Consumer Properties
         Properties properties = new Properties();
@@ -26,7 +25,7 @@ public class KafkaTwitterConsumer {
         properties.setProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100");
 
         // Create Consumer
-        KafkaConsumer<String, String> consumer = new KafkaConsumer<String, String>(properties);
+        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(properties);
 
         // Subscribe to Single Topic
         consumer.subscribe(Collections.singletonList(topic));

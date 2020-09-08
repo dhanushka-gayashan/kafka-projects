@@ -28,14 +28,15 @@ public class TwitterProducer {
     public void run() {
         logger.info("Start Twitter Client");
 
-        final String kafkaTopic = "twitter_tweets";
-
         // Set up your blocking queues: Be sure to size these properly based on expected TPS of your stream
         BlockingQueue<String> msgQueue = new LinkedBlockingQueue<>(100000);
 
         // Create and Connect Twitter Client
         Client hosebirdClient = createTwitterClient(msgQueue);
         hosebirdClient.connect();
+
+        // Kafka Topic
+        final String kafkaTopic = "twitter_tweets";
 
         // Create Kafka Producer
         KafkaProducer<String, String> kafkaProducer = createKafkaProducer();
@@ -83,12 +84,12 @@ public class TwitterProducer {
         final String token = "";
         final String tokenSecret = "";
 
-        // Following Terms
-        List<String> terms = Lists.newArrayList("aws", "kafka", "cnn");
-
         // Declare the host you want to connect to, the endpoint, and authentication (basic auth or oauth)
         Hosts hosebirdHosts = new HttpHosts(Constants.STREAM_HOST);
         StatusesFilterEndpoint hosebirdEndpoint = new StatusesFilterEndpoint();
+
+        // Following Terms
+        List<String> terms = Lists.newArrayList("aws", "kafka", "cnn");
         hosebirdEndpoint.trackTerms(terms);
 
         // These secrets should be read from a config file
@@ -116,10 +117,10 @@ public class TwitterProducer {
         properties.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
 
         // Safe Producer
-        properties.setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
         properties.setProperty(ProducerConfig.ACKS_CONFIG, "all");
-        properties.setProperty(ProducerConfig.RETRIES_CONFIG, Integer.toString(Integer.MAX_VALUE));
+        properties.setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
         properties.setProperty(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5");
+        properties.setProperty(ProducerConfig.RETRIES_CONFIG, Integer.toString(Integer.MAX_VALUE));
 
         // High Throughput Producer (Batching) - at the expense of a bit of latency and CPU usage
         properties.setProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");

@@ -7,7 +7,6 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -23,49 +22,58 @@ public class RunConsumer {
 
     public static void main(String[] args) throws IOException {
 
-        ElasticsearchClient elasticsearchClient = new ElasticsearchClient();
-        RestHighLevelClient restHighLevelClient = elasticsearchClient.createClient();
+        RestHighLevelClient elasticsearchClient = new ElasticsearchClient().createClient();
 
-        KafkaTwitterConsumer kafkaTwitterConsumer = new KafkaTwitterConsumer();
-        KafkaConsumer<String, String> kafkaConsumer = kafkaTwitterConsumer.createConsumer();
+        String topic = "twitter_tweets";
+        KafkaConsumer<String, String> kafkaTwitterConsumer = new KafkaTwitterConsumer().createConsumer(topic);
 
-        startConsume(restHighLevelClient, kafkaConsumer);
+        startConsume(kafkaTwitterConsumer, elasticsearchClient);
     }
 
-    private static void startConsume(RestHighLevelClient restHighLevelClient, KafkaConsumer<String, String> kafkaConsumer) throws IOException {
+    private static void startConsume(KafkaConsumer<String, String> kafkaTwitterConsumer, RestHighLevelClient elasticsearchClient) throws IOException {
 
         // Poll for new Data
         while (true) {
-            ConsumerRecords<String, String> records = kafkaConsumer.poll(Duration.ofMillis(100));
+            ConsumerRecords<String, String> records = kafkaTwitterConsumer.poll(Duration.ofMillis(100));
 
-            BulkRequest bulkRequest = new BulkRequest();
-
-            int recordCount = records.count();
+            Integer recordCount = records.count();
             logger.info("Received " + recordCount + " records...");
 
-            for (ConsumerRecord<String, String> record : records) {
-                try {
-                    // Idempotent Consumer - ElasticSearch won't insert duplicate ids
-                    // If you haven't commit offset, then you can see duplicate feed IDs in logs, but ES won't inset those feeds in to cluster
-                    String id = extractTweetId(record.value());
-                    String indexName = "twitter";
-                    String jsonStr = record.value();
-                    bulkRequest.add(new IndexRequest(indexName).id(id).source(jsonStr, XContentType.JSON));
-                } catch (NullPointerException e) {
-                    logger.warn("skipped bad data " + record.value());
-                }
-            }
-
             if (recordCount > 0) {
-                BulkResponse bulkItemResponses = restHighLevelClient.bulk(bulkRequest, RequestOptions.DEFAULT);
-            }
+                BulkRequest bulkRequest = new BulkRequest();
 
-            logger.info("Committing offsets...");
-            kafkaConsumer.commitSync();
-            logger.info("Offsets have been commited...");
+                records.forEach(record -> {
+                    try {
+                        String indexName = "twitter";
+
+                        String jsonStr = record.value();
+
+                        // Idempotent Consumer - ElasticSearch won't insert duplicate ids
+                        // If you haven't commit offset, then you can see duplicate feed IDs in logs, but ES won't inset those feeds in to cluster
+                        String id = extractTweetId(jsonStr);
+
+                        IndexRequest indexRequest = new IndexRequest(indexName);
+                        indexRequest.id(id);
+                        indexRequest.source(jsonStr, XContentType.JSON);
+                        bulkRequest.add(indexRequest);
+                    } catch (NullPointerException e) {
+                        logger.warn("skipped bad data " + record.value());
+                    }
+                });
+
+                // Sent Bulk Request
+                BulkResponse bulkItemResponses = elasticsearchClient.bulk(bulkRequest, RequestOptions.DEFAULT);
+                logger.info("Committed Bulk Tweets: " + bulkItemResponses.status().toString());
+
+                // Committing Offsets
+                logger.info("Committing offsets...");
+                kafkaTwitterConsumer.commitSync();
+                logger.info("Offsets have been committed...");
+            }
 
             try {
-                Thread.sleep(1000); // Introduce a small delay
+                // Introduce a small delay
+                Thread.sleep(100);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
