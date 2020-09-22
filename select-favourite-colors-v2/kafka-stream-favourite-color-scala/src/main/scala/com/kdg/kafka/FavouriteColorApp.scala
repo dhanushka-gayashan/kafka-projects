@@ -7,7 +7,7 @@ import java.util.Properties
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.common.utils.Bytes
-import org.apache.kafka.streams.kstream.{KStream, KTable, Materialized, Produced, Serialized}
+import org.apache.kafka.streams.kstream.{KStream, KTable, Materialized, Produced}
 import org.apache.kafka.streams.state.KeyValueStore
 import org.apache.kafka.streams.{KafkaStreams, KeyValue, StreamsBuilder, StreamsConfig, Topology}
 
